@@ -39,6 +39,26 @@ This directory contains inference scripts for the YuE music generation model.
 
 ---
 
+## Setup (Required)
+
+Before running either inference script, you **must** clone the xcodec model from HuggingFace:
+
+```bash
+cd YuE/inference/
+git lfs install
+git clone https://huggingface.co/m-a-p/xcodec_mini_infer
+```
+
+> **Note:** Make sure you have `git-lfs` installed. If not:
+> ```bash
+> # Ubuntu/Debian
+> apt install git-lfs
+> 
+> # Or without root (see https://github.com/git-lfs/git-lfs/issues/4134#issuecomment-1635204943)
+> ```
+
+---
+
 ## Usage
 
 ### Original (Transformers)
