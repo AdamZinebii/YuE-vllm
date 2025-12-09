@@ -41,8 +41,8 @@ from post_process_audio import replace_low_freq_with_energy_matched
 
 parser = argparse.ArgumentParser()
 # Model Configuration
-parser.add_argument("--stage1_model", type=str, default="m-a-p/YuE-s1-7B-anneal-en-cot", help="Stage 1 model checkpoint")
-parser.add_argument("--stage2_model", type=str, default="m-a-p/YuE-s2-1B-general", help="Stage 2 model checkpoint")
+parser.add_argument("--stage1_model", type=str, default="../models/YuE-s1-7B-anneal-en-cot", help="Stage 1 model checkpoint")
+parser.add_argument("--stage2_model", type=str, default="../models/YuE-s2-1B-general", help="Stage 2 model checkpoint")
 parser.add_argument("--max_new_tokens", type=int, default=3000, help="Max tokens per segment")
 parser.add_argument("--repetition_penalty", type=float, default=1.1, help="Repetition penalty (1.0-2.0)")
 parser.add_argument("--run_n_segments", type=int, default=2, help="Number of segments to generate")
