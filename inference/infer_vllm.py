@@ -10,6 +10,11 @@ so this parameter is not used in this implementation.
 
 import os
 import sys
+
+# Disable vLLM V1 engine - V1 doesn't support per-request logits processors
+# V0 (legacy) engine is required for custom logits processors per request
+os.environ["VLLM_USE_V1"] = "0"
+
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'xcodec_mini_infer'))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'xcodec_mini_infer', 'descriptaudiocodec'))
 import re
