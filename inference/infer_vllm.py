@@ -105,12 +105,14 @@ os.environ["CUDA_VISIBLE_DEVICES"] = str(cuda_idx)
 mmtokenizer = _MMSentencePieceTokenizer("./mm_tokenizer_v0.2_hf/tokenizer.model")
 
 # Load Stage 1 model with vLLM
+# skip_tokenizer_init=True because we use custom mmtokenizer for tokenization
 print("Loading Stage 1 model with vLLM...")
 model = LLM(
     model=stage1_model,
     dtype="bfloat16",
     trust_remote_code=True,
     gpu_memory_utilization=0.9,
+    skip_tokenizer_init=True,
 )
 
 # Load codec model for audio encoding
@@ -311,6 +313,7 @@ model_stage2 = LLM(
     dtype="bfloat16",
     trust_remote_code=True,
     gpu_memory_utilization=0.9,
+    skip_tokenizer_init=True,
 )
 
 
