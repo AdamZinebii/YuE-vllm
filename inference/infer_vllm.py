@@ -118,30 +118,6 @@ os.environ["CUDA_VISIBLE_DEVICES"] = str(cuda_idx)
 # Load tokenizer
 mmtokenizer = _MMSentencePieceTokenizer("./mm_tokenizer_v0.2_hf/tokenizer.model")
 
-# Load Stage 1 model with vLLM
-# skip_tokenizer_init=True because we use custom mmtokenizer for tokenization
-# logits_processors passed as CLASS (not instance) for V1 compatibility
-print("Loading Stage 1 model with vLLM...")
-model = LLM(
-    model=stage1_model,
-    dtype="bfloat16",
-    trust_remote_code=True,
-    gpu_memory_utilization=0.9,
-    skip_tokenizer_init=True,
-    logits_processors=[Stage1BlockTokensLogitsProcessor],
-)
-
-# Load codec model for audio encoding
-device = torch.device(f"cuda:0" if torch.cuda.is_available() else "cpu")
-codectool = CodecManipulator("xcodec", 0, 1)
-codectool_stage2 = CodecManipulator("xcodec", 0, 8)
-model_config = OmegaConf.load(args.basic_model_config)
-codec_model = eval(model_config.generator.name)(**model_config.generator.config).to(device)
-parameter_dict = torch.load(args.resume_path, map_location='cpu', weights_only=False)
-codec_model.load_state_dict(parameter_dict['codec_model'])
-codec_model.to(device)
-codec_model.eval()
-
 
 # ============================================================================
 # vLLM V1-compatible LogitsProcessor classes
@@ -230,6 +206,30 @@ class Stage2BlockTokensLogitsProcessor(V1LogitsProcessor if VLLM_V1_AVAILABLE el
         # Block tokens in range [53526, vocab_size)
         logits[:, 53526:] = float("-inf")
         return logits
+
+# Load Stage 1 model with vLLM
+# skip_tokenizer_init=True because we use custom mmtokenizer for tokenization
+# logits_processors passed as CLASS (not instance) for V1 compatibility
+print("Loading Stage 1 model with vLLM...")
+model = LLM(
+    model=stage1_model,
+    dtype="bfloat16",
+    trust_remote_code=True,
+    gpu_memory_utilization=0.9,
+    skip_tokenizer_init=True,
+    logits_processors=[Stage1BlockTokensLogitsProcessor],
+)
+
+# Load codec model for audio encoding
+device = torch.device(f"cuda:0" if torch.cuda.is_available() else "cpu")
+codectool = CodecManipulator("xcodec", 0, 1)
+codectool_stage2 = CodecManipulator("xcodec", 0, 8)
+model_config = OmegaConf.load(args.basic_model_config)
+codec_model = eval(model_config.generator.name)(**model_config.generator.config).to(device)
+parameter_dict = torch.load(args.resume_path, map_location='cpu', weights_only=False)
+codec_model.load_state_dict(parameter_dict['codec_model'])
+codec_model.to(device)
+codec_model.eval()
 
 
 def load_audio_mono(filepath, sampling_rate=16000):
