@@ -252,9 +252,9 @@ for i, p in enumerate(tqdm(prompt_texts[:run_n_segments], desc="Stage1 inference
         logits_processors=[create_block_tokens_logits_processor()],
     )
     
-    # Generate with vLLM using prompt_token_ids
+    # Generate with vLLM using prompt as dict with token ids
     outputs = model.generate(
-        prompt_token_ids=[input_ids],
+        prompts=[{"prompt_token_ids": input_ids}],
         sampling_params=sampling_params,
     )
     
@@ -385,7 +385,7 @@ def stage2_generate(model, prompt, batch_size=16):
             )
             
             outputs = model.generate(
-                prompt_token_ids=[current_prompt],
+                prompts=[{"prompt_token_ids": current_prompt}],
                 sampling_params=sampling_params,
             )
             
