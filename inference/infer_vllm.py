@@ -34,15 +34,6 @@ from omegaconf import OmegaConf
 
 # vLLM imports
 from vllm import LLM, SamplingParams
-from vllm.sampling_params import SamplingParams
-
-try:
-    # vLLM V1 LogitsProcessor base class
-    from vllm.v1.sample.logits_processor import LogitsProcessor as V1LogitsProcessor
-    VLLM_V1_AVAILABLE = True
-except ImportError:
-    VLLM_V1_AVAILABLE = False
-    V1LogitsProcessor = object  # Fallback for older versions
 
 # Local imports
 from codecmanipulator import CodecManipulator
@@ -119,97 +110,11 @@ os.environ["CUDA_VISIBLE_DEVICES"] = str(cuda_idx)
 mmtokenizer = _MMSentencePieceTokenizer("./mm_tokenizer_v0.2_hf/tokenizer.model")
 
 
-# ============================================================================
-# vLLM V1-compatible LogitsProcessor classes
-# These are registered at LLM initialization, not per-request
-# ============================================================================
-
-class Stage1BlockTokensLogitsProcessor(V1LogitsProcessor if VLLM_V1_AVAILABLE else object):
-    """
-    Batch-level LogitsProcessor for Stage 1.
-    Blocks tokens in ranges [0, 32002) and token 32016.
-    """
-    
-    def __init__(self):
-        self.requests = {}  # Track active requests
-    
-    @classmethod
-    def validate_params(cls, sampling_params: SamplingParams):
-        """Validate SamplingParams - no special validation needed."""
-        pass
-    
-    def is_argmax_only(self) -> bool:
-        """Return False since we need to process all logits."""
-        return False
-    
-    def add(self, index: int, new_request_sampling_params: SamplingParams,
-            prompt_token_ids: list, output_token_ids: list) -> None:
-        """Add new request at index."""
-        self.requests[index] = True
-    
-    def remove(self, index: int) -> None:
-        """Remove request at index."""
-        if index in self.requests:
-            del self.requests[index]
-    
-    def move(self, src_index: int, tgt_index: int) -> None:
-        """Move request from src_index to tgt_index."""
-        if src_index in self.requests:
-            self.requests[tgt_index] = self.requests.pop(src_index)
-    
-    def apply(self, batch_indices: list, logits: torch.Tensor) -> torch.Tensor:
-        """Apply token blocking to logits for all requests in batch."""
-        # Block tokens in range [0, 32002)
-        logits[:, 0:32002] = float("-inf")
-        # Block token 32016
-        logits[:, 32016] = float("-inf")
-        return logits
-
-
-class Stage2BlockTokensLogitsProcessor(V1LogitsProcessor if VLLM_V1_AVAILABLE else object):
-    """
-    Batch-level LogitsProcessor for Stage 2.
-    Blocks tokens in ranges [0, 46358) and [53526, vocab_size).
-    """
-    
-    def __init__(self):
-        self.requests = {}
-    
-    @classmethod
-    def validate_params(cls, sampling_params: SamplingParams):
-        """Validate SamplingParams - no special validation needed."""
-        pass
-    
-    def is_argmax_only(self) -> bool:
-        """Return False since we need to process all logits."""
-        return False
-    
-    def add(self, index: int, new_request_sampling_params: SamplingParams,
-            prompt_token_ids: list, output_token_ids: list) -> None:
-        """Add new request at index."""
-        self.requests[index] = True
-    
-    def remove(self, index: int) -> None:
-        """Remove request at index."""
-        if index in self.requests:
-            del self.requests[index]
-    
-    def move(self, src_index: int, tgt_index: int) -> None:
-        """Move request from src_index to tgt_index."""
-        if src_index in self.requests:
-            self.requests[tgt_index] = self.requests.pop(src_index)
-    
-    def apply(self, batch_indices: list, logits: torch.Tensor) -> torch.Tensor:
-        """Apply token blocking to logits for all requests in batch."""
-        # Block tokens in range [0, 46358)
-        logits[:, 0:46358] = float("-inf")
-        # Block tokens in range [53526, vocab_size)
-        logits[:, 53526:] = float("-inf")
-        return logits
-
 # Load Stage 1 model with vLLM
 # skip_tokenizer_init=True because we use custom mmtokenizer for tokenization
-# logits_processors passed as CLASS (not instance) for V1 compatibility
+# NOTE: vLLM V1 doesn't support simple custom logits processors, so we rely on
+# the model's training to generate valid audio tokens. Post-processing will
+# validate and fix any invalid tokens if needed.
 print("Loading Stage 1 model with vLLM...")
 model = LLM(
     model=stage1_model,
@@ -217,7 +122,6 @@ model = LLM(
     trust_remote_code=True,
     gpu_memory_utilization=0.9,
     skip_tokenizer_init=True,
-    logits_processors=[Stage1BlockTokensLogitsProcessor],
 )
 
 # Load codec model for audio encoding
@@ -404,7 +308,6 @@ model_stage2 = LLM(
     trust_remote_code=True,
     gpu_memory_utilization=0.9,
     skip_tokenizer_init=True,
-    logits_processors=[Stage2BlockTokensLogitsProcessor],
 )
 
 
